@@ -16,53 +16,10 @@ and [Albius](https://github.com/vanilla-os/albius).
 
 ## Usage
 
-```go
-package main
+You can see examples of how to use Prometheus in the [examples](examples) 
+directory.
 
-import (
-	"fmt"
-
-	"github.com/containers/storage/pkg/reexec"
-	"github.com/vanilla-os/prometheus"
-)
-
-func main() {
-	if reexec.Init() {
-		return
-	}
-
-	pmt, err := prometheus.NewPrometheus("storage", "overlay")
-	if err != nil {
-		panic(err)
-	}
-
-	manifest, err := pmt.PullImage(
-		"registry.vanillaos.org/vanillaos/desktop:main", // image name
-		"vos-desktop", // stored image name
-	)
-	if err != nil {
-		panic(err)
-	}
-
-    fmt.Printf("Image pulled with digest %s\n", manifest.Config.Digest)
-
-	image, err := pmt.GetImageByDigest(manifest.Config.Digest)
-	if err != nil {
-		panic(err)
-	}
-
-	mountPoint, err := pmt.MountImage(image.TopLayer)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Image mounted at %s\n", mountPoint)
-
-    if err := pmt.UnmountImage(mountPoint); err != nil {
-        panic(err)
-    }
-}
-```
+A reference documentation is available [here](docs/prometheus_docs.md).
 
 ## License
 
