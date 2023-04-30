@@ -1,6 +1,6 @@
 module github.com/vanilla-os/prometheus
 
-go 1.20
+go 1.19
 
 require (
 	github.com/containers/image/v5 v5.25.0
