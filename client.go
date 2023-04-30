@@ -18,6 +18,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/containers/buildah/define"
+	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/image/v5/copy"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/storage"
@@ -166,4 +168,25 @@ func (p *Prometheus) UnMountImage(layerId string, force bool) (bool, error) {
 	}
 
 	return res, nil
+}
+
+/* BuildContainerFile builds a dockerfile and returns the manifest of the built
+ * image and an error if any. */
+func (p *Prometheus) BuildContainerFile(dockerfilePath string, imageName string) (cstorage.Image, error) {
+	id, _, err := imagebuildah.BuildDockerfiles(
+		context.Background(),
+		p.Store,
+		define.BuildOptions{},
+		dockerfilePath,
+	)
+	if err != nil {
+		return cstorage.Image{}, err
+	}
+
+	image, err := p.GetImageByDigest(id)
+	if err != nil {
+		return cstorage.Image{}, err
+	}
+
+	return image, nil
 }
