@@ -1,4 +1,4 @@
-package main
+package prometheus
 
 /*	License: GPLv3
 	Authors:
