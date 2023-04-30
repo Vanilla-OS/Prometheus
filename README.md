@@ -18,7 +18,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/containers/storage/pkg/reexec"
 	"github.com/vanilla-os/prometheus"
 )
 
