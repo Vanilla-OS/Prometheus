@@ -22,11 +22,7 @@ import (
 )
 
 func main() {
-	pmt, err := prometheus.NewPrometheus(
-		"storage/run", // storage directory
-		"storage/graph", // graph directory
-		"overlay", // storage driver
-	)
+	pmt, err := prometheus.NewPrometheus("storage", "overlay")
 	if err != nil {
 		panic(err)
 	}
