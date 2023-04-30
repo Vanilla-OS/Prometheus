@@ -15,15 +15,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/containers/storage/pkg/reexec"
 	"github.com/vanilla-os/prometheus"
 )
 
 func main() {
-	if reexec.Init() { // needed for subprocesses
-		return
-	}
-
 	pmt, err := prometheus.NewPrometheus(
 		"storage/run", // storage directory
 		"storage/graph", // graph directory
