@@ -27,6 +27,8 @@ import (
 	cstorage "github.com/containers/storage"
 )
 
+var version = "0.1.0"
+
 /* NewPrometheus creates a new Prometheus instance, note that currently
  * Prometheus only works with custom stores, so you need to pass the
  * runRoot, graphRoot and graphDriverName to create a new one.
