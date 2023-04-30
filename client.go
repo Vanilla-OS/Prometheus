@@ -14,7 +14,6 @@ package prometheus
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,20 +28,21 @@ import (
 
 /* NewPrometheus creates a new Prometheus instance, note that currently
  * Prometheus only works with custom stores, so you need to pass the
- * runRoot, graphRoot and graphDriverName to create a new one.
+ * root graphDriverName to create a new one.
  */
-func NewPrometheus(runRoot, graphRoot, graphDriverName string) (*Prometheus, error) {
+func NewPrometheus(root, graphDriverName string) (*Prometheus, error) {
 	var err error
 
-	runRoot = filepath.Clean(runRoot)
-	if _, err := os.Stat(runRoot); os.IsNotExist(err) {
-		return nil, errors.New("defined runRoot path does not exist: " + runRoot)
+	root = filepath.Clean(root)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		err = os.MkdirAll(root, 0755)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	graphRoot = filepath.Clean(graphRoot)
-	if _, err := os.Stat(graphRoot); os.IsNotExist(err) {
-		return nil, errors.New("defined graphRoot path does not exist: " + graphRoot)
-	}
+	runRoot := filepath.Join(root, "run")
+	graphRoot := filepath.Join(root, "graph")
 
 	store, err := cstorage.GetStore(cstorage.StoreOptions{
 		RunRoot:         runRoot,
