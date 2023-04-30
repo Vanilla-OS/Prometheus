@@ -19,7 +19,7 @@ and [Albius](https://github.com/vanilla-os/albius).
 You can see examples of how to use Prometheus in the [examples](examples) 
 directory.
 
-A reference documentation is available [here](docs/prometheus_docs.md).
+A reference documentation is available on [pkg.go.dev](https://pkg.go.dev/github.com/vanilla-os/prometheus).
 
 ## License
 
