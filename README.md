@@ -18,10 +18,15 @@ package main
 import (
 	"fmt"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/vanilla-os/prometheus"
 )
 
 func main() {
+	if reexec.Init() { // needed for subprocesses
+		return
+	}
+
 	pmt, err := prometheus.NewPrometheus("storage", "overlay")
 	if err != nil {
 		panic(err)
