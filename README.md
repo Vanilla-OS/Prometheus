@@ -27,7 +27,7 @@ import (
 )
 
 func main() {
-	if reexec.Init() { // needed for subprocesses
+	if reexec.Init() {
 		return
 	}
 
