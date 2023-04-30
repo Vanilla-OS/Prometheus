@@ -1,8 +1,12 @@
-# Prometheus
+<div align="center">
+<img src="assets/Prometheus.png?raw=true#gh-dark-mode-only" height="40">
+<img src="assets/Prometheus-mono.png?raw=true#gh-light-mode-only" height="40">
 
+---
 Prometheus is a simple and accessible library for pulling and mounting container 
 images. It is designed to be used as a dependency in [ABRoot](https://github.com/vanilla-os/abroot) 
 and [Albius](https://github.com/vanilla-os/albius).
+</div>
 
 ## Build dependencies
 
