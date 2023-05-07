@@ -15,7 +15,7 @@ func main() {
 	// -----------------------------
 	fmt.Println("Building image from a Containerfile...")
 
-	pmt, err := prometheus.NewPrometheus("storage", "overlay")
+	pmt, err := prometheus.NewPrometheus("storage", "overlay", 5)
 	if err != nil {
 		panic(err)
 	}

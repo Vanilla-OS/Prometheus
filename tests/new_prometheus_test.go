@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewPrometheus(t *testing.T) {
-	pmt, err := prometheus.NewPrometheus("storage", "vfs")
+	pmt, err := prometheus.NewPrometheus("storage", "vfs", 5)
 	if err != nil {
 		t.Fatalf("error creating Prometheus instance: %v", err)
 	}

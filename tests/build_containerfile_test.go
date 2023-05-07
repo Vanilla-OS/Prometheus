@@ -13,7 +13,7 @@ func TestBuildContainerfile(t *testing.T) {
 		return
 	}
 
-	pmt, err := prometheus.NewPrometheus("storage", "vfs")
+	pmt, err := prometheus.NewPrometheus("storage", "vfs", 5)
 	if err != nil {
 		t.Fatalf("error creating Prometheus instance: %v", err)
 	}
