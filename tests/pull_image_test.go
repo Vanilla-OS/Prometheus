@@ -1,26 +1,37 @@
 package tests
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
+	"github.com/containers/image/v5/types"
 	"github.com/containers/storage/pkg/reexec"
 	"github.com/vanilla-os/prometheus"
 )
 
-func TestPullImage(t *testing.T) {
+var pmt *prometheus.Prometheus
+
+func TestMain(m *testing.M) {
 	if reexec.Init() {
 		return
 	}
 
-	pmt, err := prometheus.NewPrometheus("storage", "vfs", 5)
+	var err error
+	pmt, err = prometheus.NewPrometheus("storage", "vfs", 5)
 	if err != nil {
-		t.Fatalf("error creating Prometheus instance: %v", err)
+		panic("error creating Prometheus instance: " + err.Error())
 	}
 
 	if pmt == nil {
-		t.Fatal("prometheus instance is nil")
+		panic("prometheus instance is nil")
 	}
 
+	status := m.Run()
+	os.Exit(status)
+}
+
+func TestPullImage(t *testing.T) {
 	image, err := pmt.PullImage("docker.io/library/alpine:latest", "my-alpine")
 	if err != nil {
 		t.Fatalf("error pulling image: %v", err)
@@ -57,6 +68,29 @@ func TestPullImage(t *testing.T) {
 
 		if layer.MediaType == "" {
 			t.Fatal("image layer media type is empty")
+		}
+	}
+}
+
+func TestPullImageAsync(t *testing.T) {
+	progressCh := make(chan types.ProgressProperties)
+	manifestCh := make(chan prometheus.OciManifest)
+
+	defer close(progressCh)
+	defer close(manifestCh)
+
+	err := pmt.PullImageAsync("docker.io/library/alpine:latest", "my-alpine", progressCh, manifestCh)
+	if err != nil {
+		t.Fatalf("error pulling image: %v", err)
+	}
+
+	for {
+		select {
+		case report := <-progressCh:
+			fmt.Printf("%s: %v/%v\n", report.Artifact.Digest.Encoded()[:12], report.Offset, report.Artifact.Size)
+		case manifest := <-manifestCh:
+			fmt.Printf("Got manifest: %v\n", manifest)
+			return
 		}
 	}
 }
