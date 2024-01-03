@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/containers/storage/pkg/reexec"
@@ -22,8 +22,8 @@ func TestBuildContainerfile(t *testing.T) {
 		t.Fatal("prometheus instance is nil")
 	}
 
-	containerfile := []byte("FROM alpine:latest")
-	err = ioutil.WriteFile("Containerfile", containerfile, 0644)
+	containerfile := []byte("FROM docker.io/library/alpine:latest")
+	err = os.WriteFile("Containerfile", containerfile, 0644)
 	if err != nil {
 		t.Fatalf("error creating Containerfile: %v", err)
 	}
