@@ -2,8 +2,6 @@ module github.com/vanilla-os/prometheus
 
 go 1.21
 
-toolchain go1.21.5
-
 require (
 	github.com/containers/buildah v1.33.2
 	github.com/containers/image/v5 v5.29.0
