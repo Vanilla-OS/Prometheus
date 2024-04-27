@@ -3,8 +3,8 @@ module github.com/vanilla-os/prometheus
 go 1.21
 
 require (
-	github.com/containers/buildah v1.33.2
-	github.com/containers/image/v5 v5.29.0
+	github.com/containers/buildah v1.33.7
+	github.com/containers/image/v5 v5.29.2
 	github.com/containers/storage v1.51.0
 )
 
@@ -26,7 +26,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.1 // indirect
 	github.com/containernetworking/cni v1.1.2 // indirect
 	github.com/containernetworking/plugins v1.4.0 // indirect
-	github.com/containers/common v0.57.1 // indirect
+	github.com/containers/common v0.57.4 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/luksy v0.0.0-20231127213545-c2b9b9dbf004 // indirect
 	github.com/containers/ocicrypt v1.1.9 // indirect
