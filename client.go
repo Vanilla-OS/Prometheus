@@ -22,6 +22,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/image"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -75,18 +76,25 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 	progressCh := make(chan types.ProgressProperties)
 	manifestCh := make(chan OciManifest)
 
+	var totalLayers int
+	var doneLayers int
+
 	defer close(progressCh)
 	defer close(manifestCh)
 
-	err := p.pullImage(imageName, dstName, progressCh, manifestCh)
+	manifest, err := p.pullImage(imageName, dstName, progressCh, manifestCh)
 	if err != nil {
 		return nil, err
 	}
+	totalLayers = len(manifest.Layers)
 	for {
 		select {
 		case report := <-progressCh:
-			fmt.Printf("%s: %v/%v\n", report.Artifact.Digest.Encoded()[:12], report.Offset, report.Artifact.Size)
-		case manifest := <-manifestCh:
+			if report.Offset >= uint64(report.Artifact.Size) {
+				doneLayers += 1
+			}
+			fmt.Printf("[%v/%v] %s: %v/%v\n", doneLayers, totalLayers, report.Artifact.Digest.Encoded()[:12], report.Offset, report.Artifact.Size)
+		case manifest = <-manifestCh:
 			return &manifest, nil
 		}
 	}
@@ -102,39 +110,59 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 // NOTE: The user is responsible for closing both channels once the operation
 // completes.
 func (p *Prometheus) PullImageAsync(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest) error {
-	err := p.pullImage(imageName, dstName, progressCh, manifestCh)
+	_, err := p.pullImage(imageName, dstName, progressCh, manifestCh)
 	return err
 }
 
-func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest) error {
+func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest) (OciManifest, error) {
 	srcRef, err := alltransports.ParseImageName(fmt.Sprintf("docker://%s", imageName))
 	if err != nil {
-		return err
+		return OciManifest{}, err
 	}
 
 	destRef, err := storage.Transport.ParseStoreReference(p.Store, dstName)
 	if err != nil {
-		return err
+		return OciManifest{}, err
 	}
 
 	systemCtx := &types.SystemContext{}
 	policy, err := signature.DefaultPolicy(systemCtx)
 	if err != nil {
-		return err
+		return OciManifest{}, err
 	}
 
 	policyCtx, err := signature.NewPolicyContext(policy)
 	if err != nil {
-		return err
+		return OciManifest{}, err
 	}
 
 	duration, err := time.ParseDuration("100ms")
 	if err != nil {
-		return err
+		return OciManifest{}, err
+	}
+
+	imageSource, err := srcRef.NewImageSource(context.Background(), systemCtx)
+	if err != nil {
+		return OciManifest{}, err
+	}
+	unparsedInstance := image.UnparsedInstance(imageSource, nil)
+	rawManifest, _, err := unparsedInstance.Manifest(context.Background())
+	if err != nil {
+		return OciManifest{}, err
+	}
+
+	var manifest OciManifest
+	json.Unmarshal(rawManifest, &manifest)
+
+	// here we remove the 'sha256:' prefix from the digest, so we don't have
+	// to deal with it later
+	manifest.Config.Digest = manifest.Config.Digest[7:]
+	for i := range manifest.Layers {
+		manifest.Layers[i].Digest = manifest.Layers[i].Digest[7:]
 	}
 
 	go func() {
-		pulledManifestBytes, err := copy.Image(
+		_, err := copy.Image(
 			context.Background(),
 			policyCtx,
 			destRef,
@@ -149,23 +177,10 @@ func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.
 			return
 		}
 
-		var manifest OciManifest
-		err = json.Unmarshal(pulledManifestBytes, &manifest)
-		if err != nil {
-			return
-		}
-
-		// here we remove the 'sha256:' prefix from the digest, so we don't have
-		// to deal with it later
-		manifest.Config.Digest = manifest.Config.Digest[7:]
-		for i := range manifest.Layers {
-			manifest.Layers[i].Digest = manifest.Layers[i].Digest[7:]
-		}
-
 		manifestCh <- manifest
 	}()
 
-	return nil
+	return manifest, nil
 }
 
 /* GetImageByDigest returns an image from the Prometheus store by its digest. */
