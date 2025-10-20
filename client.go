@@ -22,6 +22,7 @@ import (
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
 	"github.com/containers/image/v5/copy"
+	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/signature"
 	"github.com/containers/image/v5/storage"
 	"github.com/containers/image/v5/transports/alltransports"
@@ -78,14 +79,33 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 	defer close(progressCh)
 	defer close(manifestCh)
 
-	err := p.pullImage(imageName, dstName, progressCh, manifestCh)
+	manifest, err := p.PullManifestOnly(imageName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull manifest %w", err)
+	}
+
+	// +1 to account for manifest
+	layersAll := len(manifest.LayerInfos()) + 1
+	layersDone := 0
+
+	err = p.pullImage(imageName, dstName, progressCh, manifestCh)
 	if err != nil {
 		return nil, err
 	}
 	for {
 		select {
 		case report := <-progressCh:
-			fmt.Printf("%s: %v/%v\n", report.Artifact.Digest.Encoded()[:12], report.Offset, report.Artifact.Size)
+			digestShort := report.Artifact.Digest.Encoded()[:12]
+			switch report.Event {
+			case types.ProgressEventNewArtifact:
+				fmt.Printf("[%v/%v] %s: %s\n", layersDone, layersAll, digestShort, "new")
+			case types.ProgressEventDone, types.ProgressEventSkipped:
+				layersDone += 1
+				fmt.Printf("[%v/%v] %s: %s\n", layersDone, layersAll, digestShort, "done")
+			case types.ProgressEventRead:
+				percentDone := 100 * float64(report.Offset) / float64(report.Artifact.Size)
+				fmt.Printf("[%v/%v] %s: %v%%\n", layersDone, layersAll, digestShort, int(percentDone))
+			}
 		case manifest := <-manifestCh:
 			return &manifest, nil
 		}
@@ -245,4 +265,51 @@ func (p *Prometheus) BuildContainerFile(dockerfilePath string, imageName string)
 	}
 
 	return image, nil
+}
+
+func (p *Prometheus) PullManifestOnly(imageName string) (manifest.Manifest, error) {
+	systemCtx := &types.SystemContext{}
+	ctx := context.Background()
+
+	var outputManifest manifest.Manifest
+
+	srcRef, err := alltransports.ParseImageName(fmt.Sprintf("docker://%s", imageName))
+	if err != nil {
+		return outputManifest, fmt.Errorf("failed to parse image name: %w", err)
+	}
+
+	source, err := srcRef.NewImageSource(ctx, systemCtx)
+	if err != nil {
+		return outputManifest, fmt.Errorf("failed to create image source: %w", err)
+	}
+	defer source.Close()
+
+	manRaw, manMime, err := source.GetManifest(ctx, nil)
+	if err != nil {
+		return outputManifest, fmt.Errorf("failed to fetch manifest: %w", err)
+	}
+
+	if manMime == manifest.DockerV2ListMediaType || manMime == "application/vnd.oci.image.index.v1+json" {
+		list, err := manifest.ListFromBlob(manRaw, manMime)
+		if err != nil {
+			return outputManifest, fmt.Errorf("failed to parse manifest list: %w", err)
+		}
+
+		instanceDigest, err := list.ChooseInstance(systemCtx)
+		if err != nil {
+			return outputManifest, fmt.Errorf("failed to select platform instance: %w", err)
+		}
+
+		manRaw, manMime, err = source.GetManifest(ctx, &instanceDigest)
+		if err != nil {
+			return outputManifest, fmt.Errorf("failed to fetch platform manifest: %w", err)
+		}
+	}
+
+	outputManifest, err = manifest.FromBlob(manRaw, manMime)
+	if err != nil {
+		return outputManifest, fmt.Errorf("failed to parse platform specific manifest: %w", err)
+	}
+
+	return outputManifest, nil
 }
