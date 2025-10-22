@@ -75,11 +75,12 @@ func TestPullImage(t *testing.T) {
 func TestPullImageAsync(t *testing.T) {
 	progressCh := make(chan types.ProgressProperties)
 	manifestCh := make(chan prometheus.OciManifest)
+	errorCh := make(chan error)
 
 	defer close(progressCh)
 	defer close(manifestCh)
 
-	err := pmt.PullImageAsync("docker.io/library/alpine:latest", "my-alpine", progressCh, manifestCh)
+	err := pmt.PullImageAsync("docker.io/library/alpine:latest", "my-alpine", progressCh, manifestCh, errorCh)
 	if err != nil {
 		t.Fatalf("error pulling image: %v", err)
 	}
@@ -91,6 +92,8 @@ func TestPullImageAsync(t *testing.T) {
 		case manifest := <-manifestCh:
 			fmt.Printf("Got manifest: %v\n", manifest)
 			return
+		case err := <-errorCh:
+			t.Error(err)
 		}
 	}
 }
