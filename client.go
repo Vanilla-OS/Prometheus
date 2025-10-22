@@ -75,9 +75,11 @@ func NewPrometheus(root, graphDriverName string, maxParallelDownloads uint) (*Pr
 func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) {
 	progressCh := make(chan types.ProgressProperties)
 	manifestCh := make(chan OciManifest)
+	errorCh := make(chan error)
 
 	defer close(progressCh)
 	defer close(manifestCh)
+	defer close(errorCh)
 
 	manifest, err := p.PullManifestOnly(imageName)
 	if err != nil {
@@ -88,7 +90,7 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 	layersAll := len(manifest.LayerInfos()) + 1
 	layersDone := 0
 
-	err = p.pullImage(imageName, dstName, progressCh, manifestCh)
+	err = p.pullImage(imageName, dstName, progressCh, manifestCh, errorCh)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +110,8 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 			}
 		case manifest := <-manifestCh:
 			return &manifest, nil
+		case err := <-errorCh:
+			return nil, err
 		}
 	}
 }
@@ -121,12 +125,12 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 //
 // NOTE: The user is responsible for closing both channels once the operation
 // completes.
-func (p *Prometheus) PullImageAsync(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest) error {
-	err := p.pullImage(imageName, dstName, progressCh, manifestCh)
+func (p *Prometheus) PullImageAsync(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest, errorCh chan error) error {
+	err := p.pullImage(imageName, dstName, progressCh, manifestCh, errorCh)
 	return err
 }
 
-func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest) error {
+func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.ProgressProperties, manifestCh chan OciManifest, errorCh chan error) error {
 	srcRef, err := alltransports.ParseImageName(fmt.Sprintf("docker://%s", imageName))
 	if err != nil {
 		return err
@@ -166,12 +170,14 @@ func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.
 			},
 		)
 		if err != nil {
+			errorCh <- err
 			return
 		}
 
 		var manifest OciManifest
 		err = json.Unmarshal(pulledManifestBytes, &manifest)
 		if err != nil {
+			errorCh <- err
 			return
 		}
 
