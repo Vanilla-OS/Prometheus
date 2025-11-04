@@ -11,7 +11,10 @@ package prometheus
 		and Albius.
 */
 
-import cstorage "github.com/containers/storage"
+import (
+    cstorage "github.com/containers/storage"
+    digest "github.com/opencontainers/go-digest"
+)
 
 type Prometheus struct {
 	Store  cstorage.Store
@@ -26,9 +29,9 @@ type OciManifest struct {
 }
 
 type OciManifestConfig struct {
-	MediaType string `json:"mediaType"`
-	Size      int    `json:"size"`
-	Digest    string `json:"digest"`
+	MediaType string        `json:"mediaType"`
+	Size      int           `json:"size"`
+	Digest    digest.Digest `json:"digest"`
 }
 
 type PrometheusConfig struct {

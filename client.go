@@ -182,13 +182,6 @@ func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.
 			return
 		}
 
-		// here we remove the 'sha256:' prefix from the digest, so we don't have
-		// to deal with it later
-		manifest.Config.Digest = manifest.Config.Digest[7:]
-		for i := range manifest.Layers {
-			manifest.Layers[i].Digest = manifest.Layers[i].Digest[7:]
-		}
-
 		manifestCh <- manifest
 	}()
 
