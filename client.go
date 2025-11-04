@@ -28,6 +28,7 @@ import (
 	"github.com/containers/image/v5/transports/alltransports"
 	"github.com/containers/image/v5/types"
 	cstorage "github.com/containers/storage"
+	digest "github.com/opencontainers/go-digest"
 )
 
 /* NewPrometheus creates a new Prometheus instance, note that currently
@@ -35,8 +36,6 @@ import (
  * root graphDriverName to create a new one.
  */
 func NewPrometheus(root, graphDriverName string, maxParallelDownloads uint) (*Prometheus, error) {
-	var err error
-
 	root = filepath.Clean(root)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		err = os.MkdirAll(root, 0755)
@@ -72,7 +71,7 @@ func NewPrometheus(root, graphDriverName string, maxParallelDownloads uint) (*Pr
 // error if any. Note that the 'docker://' prefix is automatically added
 // to the imageName to make it compatible with the alltransports.ParseImageName
 // method.
-func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) {
+func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, digest.Digest, error) {
 	progressCh := make(chan types.ProgressProperties)
 	manifestCh := make(chan OciManifest)
 	errorCh := make(chan error)
@@ -81,9 +80,9 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 	defer close(manifestCh)
 	defer close(errorCh)
 
-	manifest, err := p.PullManifestOnly(imageName)
+	manifest, manifestDigest, err := p.PullManifestOnly(imageName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to pull manifest %w", err)
+		return nil, "", fmt.Errorf("failed to pull manifest %w", err)
 	}
 
 	// +1 to account for manifest
@@ -92,7 +91,7 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 
 	err = p.pullImage(imageName, dstName, progressCh, manifestCh, errorCh)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	for {
 		select {
@@ -109,9 +108,9 @@ func (p *Prometheus) PullImage(imageName, dstName string) (*OciManifest, error) 
 				fmt.Printf("[%v/%v] %s: %v%%\n", layersDone, layersAll, digestShort, int(percentDone))
 			}
 		case manifest := <-manifestCh:
-			return &manifest, nil
+			return &manifest, manifestDigest, nil
 		case err := <-errorCh:
-			return nil, err
+			return nil, "", err
 		}
 	}
 }
@@ -181,28 +180,21 @@ func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.
 			return
 		}
 
-		// here we remove the 'sha256:' prefix from the digest, so we don't have
-		// to deal with it later
-		manifest.Config.Digest = manifest.Config.Digest[7:]
-		for i := range manifest.Layers {
-			manifest.Layers[i].Digest = manifest.Layers[i].Digest[7:]
-		}
-
 		manifestCh <- manifest
 	}()
 
 	return nil
 }
 
-/* GetImageByDigest returns an image from the Prometheus store by its digest. */
-func (p *Prometheus) GetImageByDigest(digest string) (cstorage.Image, error) {
+/* GetImageById returns an image from the Prometheus store by its ID. */
+func (p *Prometheus) GetImageById(id string) (cstorage.Image, error) {
 	images, err := p.Store.Images()
 	if err != nil {
 		return cstorage.Image{}, err
 	}
 
 	for _, img := range images {
-		if img.ID == digest {
+		if img.ID == id {
 			return img, nil
 		}
 	}
@@ -211,16 +203,15 @@ func (p *Prometheus) GetImageByDigest(digest string) (cstorage.Image, error) {
 	return cstorage.Image{}, err
 }
 
-/* DoesImageExist checks if an image exists in the Prometheus store by its
- * digest. It returns a boolean indicating if the image exists and an error
- * if any. */
-func (p *Prometheus) DoesImageExist(digest string) (bool, error) {
-	image, err := p.GetImageByDigest(digest)
+/* DoesImageExist checks if an image exists in the Prometheus store by its ID.
+ * It returns a boolean indicating if the image exists and an error if any. */
+func (p *Prometheus) DoesImageExist(id string) (bool, error) {
+	image, err := p.GetImageById(id)
 	if err != nil {
 		return false, err
 	}
 
-	if image.ID == digest {
+	if image.ID == id {
 		return true, nil
 	}
 
@@ -265,7 +256,7 @@ func (p *Prometheus) BuildContainerFile(dockerfilePath string, imageName string)
 		return cstorage.Image{}, err
 	}
 
-	image, err := p.GetImageByDigest(id)
+	image, err := p.GetImageById(id)
 	if err != nil {
 		return cstorage.Image{}, err
 	}
@@ -273,49 +264,52 @@ func (p *Prometheus) BuildContainerFile(dockerfilePath string, imageName string)
 	return image, nil
 }
 
-func (p *Prometheus) PullManifestOnly(imageName string) (manifest.Manifest, error) {
+func (p *Prometheus) PullManifestOnly(imageName string) (manifest.Manifest, digest.Digest, error) {
 	systemCtx := &types.SystemContext{}
 	ctx := context.Background()
 
-	var outputManifest manifest.Manifest
-
 	srcRef, err := alltransports.ParseImageName(fmt.Sprintf("docker://%s", imageName))
 	if err != nil {
-		return outputManifest, fmt.Errorf("failed to parse image name: %w", err)
+		return nil, "", fmt.Errorf("failed to parse image name: %w", err)
 	}
 
 	source, err := srcRef.NewImageSource(ctx, systemCtx)
 	if err != nil {
-		return outputManifest, fmt.Errorf("failed to create image source: %w", err)
+		return nil, "", fmt.Errorf("failed to create image source: %w", err)
 	}
 	defer source.Close()
 
 	manRaw, manMime, err := source.GetManifest(ctx, nil)
 	if err != nil {
-		return outputManifest, fmt.Errorf("failed to fetch manifest: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 
-	if manMime == manifest.DockerV2ListMediaType || manMime == "application/vnd.oci.image.index.v1+json" {
+	if manifest.MIMETypeIsMultiImage(manMime) {
 		list, err := manifest.ListFromBlob(manRaw, manMime)
 		if err != nil {
-			return outputManifest, fmt.Errorf("failed to parse manifest list: %w", err)
+			return nil, "", fmt.Errorf("failed to parse manifest list: %w", err)
 		}
 
 		instanceDigest, err := list.ChooseInstance(systemCtx)
 		if err != nil {
-			return outputManifest, fmt.Errorf("failed to select platform instance: %w", err)
+			return nil, "", fmt.Errorf("failed to select platform instance: %w", err)
 		}
 
 		manRaw, manMime, err = source.GetManifest(ctx, &instanceDigest)
 		if err != nil {
-			return outputManifest, fmt.Errorf("failed to fetch platform manifest: %w", err)
+			return nil, "", fmt.Errorf("failed to fetch platform manifest: %w", err)
 		}
 	}
 
-	outputManifest, err = manifest.FromBlob(manRaw, manMime)
+	outputManifest, err := manifest.FromBlob(manRaw, manMime)
 	if err != nil {
-		return outputManifest, fmt.Errorf("failed to parse platform specific manifest: %w", err)
+		return nil, "", fmt.Errorf("failed to parse platform specific manifest: %w", err)
 	}
 
-	return outputManifest, nil
+	manifestDigest, err := manifest.Digest(manRaw)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch digest of manifest: %w", err)
+	}
+
+	return outputManifest, manifestDigest, nil
 }
