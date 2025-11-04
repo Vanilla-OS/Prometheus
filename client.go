@@ -188,15 +188,15 @@ func (p *Prometheus) pullImage(imageName, dstName string, progressCh chan types.
 	return nil
 }
 
-/* GetImageByDigest returns an image from the Prometheus store by its digest. */
-func (p *Prometheus) GetImageByDigest(digest string) (cstorage.Image, error) {
+/* GetImageById returns an image from the Prometheus store by its ID. */
+func (p *Prometheus) GetImageById(id string) (cstorage.Image, error) {
 	images, err := p.Store.Images()
 	if err != nil {
 		return cstorage.Image{}, err
 	}
 
 	for _, img := range images {
-		if img.ID == digest {
+		if img.ID == id {
 			return img, nil
 		}
 	}
@@ -205,16 +205,15 @@ func (p *Prometheus) GetImageByDigest(digest string) (cstorage.Image, error) {
 	return cstorage.Image{}, err
 }
 
-/* DoesImageExist checks if an image exists in the Prometheus store by its
- * digest. It returns a boolean indicating if the image exists and an error
- * if any. */
-func (p *Prometheus) DoesImageExist(digest string) (bool, error) {
-	image, err := p.GetImageByDigest(digest)
+/* DoesImageExist checks if an image exists in the Prometheus store by its ID.
+ * It returns a boolean indicating if the image exists and an error if any. */
+func (p *Prometheus) DoesImageExist(id string) (bool, error) {
+	image, err := p.GetImageById(id)
 	if err != nil {
 		return false, err
 	}
 
-	if image.ID == digest {
+	if image.ID == id {
 		return true, nil
 	}
 
@@ -259,7 +258,7 @@ func (p *Prometheus) BuildContainerFile(dockerfilePath string, imageName string)
 		return cstorage.Image{}, err
 	}
 
-	image, err := p.GetImageByDigest(id)
+	image, err := p.GetImageById(id)
 	if err != nil {
 		return cstorage.Image{}, err
 	}

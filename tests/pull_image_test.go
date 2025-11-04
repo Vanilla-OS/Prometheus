@@ -45,6 +45,10 @@ func TestPullImage(t *testing.T) {
 		t.Fatal("image digest is empty")
 	}
 
+	if image.Config.Digest == "" {
+		t.Fatal("image config digest is empty")
+	}
+
 	if image.Config.Size == 0 {
 		t.Fatal("image config size is 0")
 	}
