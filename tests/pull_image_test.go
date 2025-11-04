@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestPullImage(t *testing.T) {
-	image, err := pmt.PullImage("docker.io/library/alpine:latest", "my-alpine")
+	image, digest, err := pmt.PullImage("docker.io/library/alpine:latest", "my-alpine")
 	if err != nil {
 		t.Fatalf("error pulling image: %v", err)
 	}
@@ -41,8 +41,8 @@ func TestPullImage(t *testing.T) {
 		t.Fatal("image is nil")
 	}
 
-	if image.Config.Digest == "" {
-		t.Fatal("image config digest is empty")
+	if digest == "" {
+		t.Fatal("image digest is empty")
 	}
 
 	if image.Config.Size == 0 {
