@@ -36,8 +36,6 @@ import (
  * root graphDriverName to create a new one.
  */
 func NewPrometheus(root, graphDriverName string, maxParallelDownloads uint) (*Prometheus, error) {
-	var err error
-
 	root = filepath.Clean(root)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		err = os.MkdirAll(root, 0755)
@@ -270,50 +268,47 @@ func (p *Prometheus) PullManifestOnly(imageName string) (manifest.Manifest, dige
 	systemCtx := &types.SystemContext{}
 	ctx := context.Background()
 
-	var outputManifest manifest.Manifest
-
 	srcRef, err := alltransports.ParseImageName(fmt.Sprintf("docker://%s", imageName))
 	if err != nil {
-		return outputManifest, "", fmt.Errorf("failed to parse image name: %w", err)
+		return nil, "", fmt.Errorf("failed to parse image name: %w", err)
 	}
 
 	source, err := srcRef.NewImageSource(ctx, systemCtx)
 	if err != nil {
-		return outputManifest, "", fmt.Errorf("failed to create image source: %w", err)
+		return nil, "", fmt.Errorf("failed to create image source: %w", err)
 	}
 	defer source.Close()
 
 	manRaw, manMime, err := source.GetManifest(ctx, nil)
 	if err != nil {
-		return outputManifest, "", fmt.Errorf("failed to fetch manifest: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 
 	if manifest.MIMETypeIsMultiImage(manMime) {
 		list, err := manifest.ListFromBlob(manRaw, manMime)
 		if err != nil {
-			return outputManifest, "", fmt.Errorf("failed to parse manifest list: %w", err)
+			return nil, "", fmt.Errorf("failed to parse manifest list: %w", err)
 		}
 
 		instanceDigest, err := list.ChooseInstance(systemCtx)
 		if err != nil {
-			return outputManifest, "", fmt.Errorf("failed to select platform instance: %w", err)
+			return nil, "", fmt.Errorf("failed to select platform instance: %w", err)
 		}
 
 		manRaw, manMime, err = source.GetManifest(ctx, &instanceDigest)
 		if err != nil {
-			return outputManifest, "", fmt.Errorf("failed to fetch platform manifest: %w", err)
+			return nil, "", fmt.Errorf("failed to fetch platform manifest: %w", err)
 		}
 	}
 
-	outputManifest, err = manifest.FromBlob(manRaw, manMime)
+	outputManifest, err := manifest.FromBlob(manRaw, manMime)
 	if err != nil {
-		return outputManifest, "", fmt.Errorf("failed to parse platform specific manifest: %w", err)
+		return nil, "", fmt.Errorf("failed to parse platform specific manifest: %w", err)
 	}
 
-	var manifestDigest digest.Digest
-	manifestDigest, err = manifest.Digest(manRaw)
+	manifestDigest, err := manifest.Digest(manRaw)
 	if err != nil {
-		return outputManifest, "", fmt.Errorf("failed to fetch digest of manifest: %w", err)
+		return nil, "", fmt.Errorf("failed to fetch digest of manifest: %w", err)
 	}
 
 	return outputManifest, manifestDigest, nil
