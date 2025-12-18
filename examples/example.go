@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/containers/storage/pkg/reexec"
+	"go.podman.io/storage/pkg/reexec"
 	"github.com/vanilla-os/prometheus"
 )
 
