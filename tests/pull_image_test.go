@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/containers/image/v5/types"
-	"github.com/containers/storage/pkg/reexec"
+	"go.podman.io/image/v5/types"
+	"go.podman.io/storage/pkg/reexec"
 	"github.com/vanilla-os/prometheus"
 )
 

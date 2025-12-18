@@ -12,7 +12,7 @@ package prometheus
 */
 
 import (
-    cstorage "github.com/containers/storage"
+    cstorage "go.podman.io/storage"
     digest "github.com/opencontainers/go-digest"
 )
 

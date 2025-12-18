@@ -21,13 +21,13 @@ import (
 
 	"github.com/containers/buildah/define"
 	"github.com/containers/buildah/imagebuildah"
-	"github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/signature"
-	"github.com/containers/image/v5/storage"
-	"github.com/containers/image/v5/transports/alltransports"
-	"github.com/containers/image/v5/types"
-	cstorage "github.com/containers/storage"
+	"go.podman.io/image/v5/copy"
+	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/signature"
+	"go.podman.io/image/v5/storage"
+	"go.podman.io/image/v5/transports/alltransports"
+	"go.podman.io/image/v5/types"
+	cstorage "go.podman.io/storage"
 	digest "github.com/opencontainers/go-digest"
 )
 
