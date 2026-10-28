@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/containers/buildah/define"
-	"github.com/containers/buildah/imagebuildah"
+	"go.podman.io/buildah/define"
+	"go.podman.io/buildah/imagebuildah"
 	"go.podman.io/image/v5/copy"
 	"go.podman.io/image/v5/manifest"
 	"go.podman.io/image/v5/signature"
