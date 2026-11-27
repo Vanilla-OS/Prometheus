@@ -51,6 +51,10 @@ func NewPrometheus(root, graphDriverName string, maxParallelDownloads uint) (*Pr
 		RunRoot:         runRoot,
 		GraphRoot:       graphRoot,
 		GraphDriverName: graphDriverName,
+		PullOptions: map[string]string{
+			"enable_partial_images": "true",
+			"use_hard_links": "true",
+		},
 	})
 	if err != nil {
 		return nil, err
